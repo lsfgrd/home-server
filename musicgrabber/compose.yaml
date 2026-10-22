@@ -30,3 +30,9 @@ services:
       - /srv/appdata/musicgrabber:/data
       - /srv/media/downloads/soulseek:/downloads   # mesma pasta de downloads do slskd
       - /srv/media/music:/music   # mesma pasta do Navidrome, aqui com escrita
+    labels:
+      homepage.group: Downloads
+      homepage.name: MusicGrabber
+      homepage.icon: mdi-music-box-multiple
+      homepage.href: http://192.168.0.5:38274
+      homepage.siteMonitor: http://192.168.0.5:38274

@@ -13,3 +13,9 @@ services:
       - DOCKGE_STACKS_DIR=/opt/stacks
       - PUID=1000   # arquivos editados pelo Dockge ficam no seu nome
       - PGID=1000
+    labels:
+      homepage.group: Sistema
+      homepage.name: Dockge
+      homepage.icon: dockge.png
+      homepage.href: http://192.168.0.5:5001
+      homepage.siteMonitor: http://192.168.0.5:5001

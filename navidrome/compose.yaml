@@ -11,3 +11,10 @@ services:
       - /srv/appdata/navidrome:/data
       - /srv/media/music:/music:ro
     restart: unless-stopped
+    labels:
+      homepage.group: Mídia
+      homepage.name: Navidrome
+      homepage.icon: navidrome.png
+      homepage.href: http://192.168.0.5:4533
+      homepage.description: Música
+      homepage.siteMonitor: http://192.168.0.5:4533

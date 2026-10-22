@@ -23,3 +23,9 @@ services:
       - /srv/media/shares:/shares:ro
       - /srv/media/downloads/soulseek:/downloads       # fora da biblioteca: nunca é compartilhado
       - /srv/appdata/slskd/incomplete:/incomplete
+    labels:
+      homepage.group: Downloads
+      homepage.name: slskd
+      homepage.icon: slskd.png
+      homepage.href: http://192.168.0.5:5030
+      homepage.siteMonitor: http://192.168.0.5:5030

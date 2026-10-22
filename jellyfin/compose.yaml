@@ -15,3 +15,10 @@ services:
     devices:
       - /dev/dri/renderD129:/dev/dri/renderD129   # host Intel device : inside container
     restart: unless-stopped
+    labels:
+      homepage.group: Mídia
+      homepage.name: Jellyfin
+      homepage.icon: jellyfin.png
+      homepage.href: http://192.168.0.5:8096
+      homepage.description: Filmes e séries
+      homepage.siteMonitor: http://192.168.0.5:8096

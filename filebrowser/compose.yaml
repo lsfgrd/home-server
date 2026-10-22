@@ -10,3 +10,9 @@ services:
       - /srv/appdata/filebrowser:/home/filebrowser/data
       - ./config.yaml:/home/filebrowser/data/config.yaml
     restart: unless-stopped
+    labels:
+      homepage.group: Arquivos
+      homepage.name: FileBrowser
+      homepage.icon: filebrowser.png
+      homepage.href: http://192.168.0.5:8081
+      homepage.siteMonitor: http://192.168.0.5:8081

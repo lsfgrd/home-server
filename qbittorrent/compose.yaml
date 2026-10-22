@@ -17,3 +17,9 @@ services:
       - "6881:6881/udp"
     stop_grace_period: 10s
     restart: unless-stopped
+    labels:
+      homepage.group: Downloads
+      homepage.name: qBittorrent
+      homepage.icon: qbittorrent.png
+      homepage.href: http://192.168.0.5:8082
+      homepage.siteMonitor: http://192.168.0.5:8082
