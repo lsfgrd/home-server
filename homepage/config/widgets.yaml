@@ -4,7 +4,11 @@
 
 - resources:
     cpu: true
+    label: CPU
+
+- resources:
     memory: true
+    label: RAM
 
 - resources:
     disk: /
