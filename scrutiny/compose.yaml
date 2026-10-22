@@ -1,0 +1,25 @@
+services:
+  scrutiny:
+    image: ghcr.io/analogj/scrutiny:v0.9.5-omnibus
+    container_name: scrutiny
+    cap_add:
+      - SYS_RAWIO    # leitura SMART
+      - SYS_ADMIN    # necessário para NVMe
+    ports:
+      - "8083:8080"   # 8080 fica reservada para o Pi-hole
+    environment:
+      - TZ=America/Sao_Paulo
+    volumes:
+      - /run/udev:/run/udev:ro
+      - /srv/appdata/scrutiny/config:/opt/scrutiny/config
+      - /srv/appdata/scrutiny/influxdb:/opt/scrutiny/influxdb
+    devices:
+      - /dev/nvme0:/dev/nvme0
+      - /dev/sda:/dev/sda
+    restart: unless-stopped
+    labels:
+      homepage.group: Sistema
+      homepage.name: Scrutiny
+      homepage.icon: scrutiny.png
+      homepage.href: http://192.168.0.5:8083
+      homepage.siteMonitor: http://192.168.0.5:8083

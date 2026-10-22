@@ -6,6 +6,11 @@
     cpu: true
     memory: true
     disk: /
+    label: SSD
+
+- resources:
+    disk: /srv/media
+    label: HD
 
 - search:
     provider: duckduckgo

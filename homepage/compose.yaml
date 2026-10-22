@@ -8,6 +8,7 @@ services:
     volumes:
       - ./config:/app/config
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /srv/media:/srv/media:ro   # para o widget de disco
     environment:
       HOMEPAGE_ALLOWED_HOSTS: 192.168.0.5
     restart: unless-stopped
