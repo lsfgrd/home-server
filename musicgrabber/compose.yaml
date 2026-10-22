@@ -19,6 +19,12 @@ services:
       NAVIDROME_PASS: ${NAVIDROME_PASS}
       # Soulseek via slskd
       SOURCE_SOULSEEK_ENABLED: "true"
+      SOURCE_YOUTUBE_ENABLED: "false"
+      SOURCE_SOUNDCLOUD_ENABLED: "false"
+      SOURCE_ZVU4NO_ENABLED: "false"
+      SOURCE_FREEMP3CLOUD_ENABLED: "false"
+      SOURCE_JIOSAAVN_ENABLED: "false"
+      SOURCE_MONOCHROME_ENABLED: "false"
       SLSKD_URL: http://host.docker.internal:5030
       SLSKD_USER: ${SLSKD_USER}
       SLSKD_PASS: ${SLSKD_PASS}
