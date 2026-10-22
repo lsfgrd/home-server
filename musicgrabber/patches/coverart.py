@@ -94,9 +94,19 @@ def _fetch_itunes_cover(artist: str, title: str) -> tuple[bytes, str] | None:
         if resp.status_code != 200:
             return None
         results = resp.json().get("results", [])
+        # iTunes returns the nearest match when it lacks the exact track, so
+        # only accept a result whose artist and title actually match.
+        wanted = _norm_album_name(title)
+        artist_norm = _norm_album_name(artist)
+        results = [
+            r for r in results
+            if artist_norm in _norm_album_name(r.get("artistName", ""))
+            and wanted
+            and (wanted in _norm_album_name(r.get("trackName", ""))
+                 or _norm_album_name(r.get("trackName", "")) in wanted)
+        ]
         if not results:
             return None
-        # First result is usually bang on for exact artist+title queries
         artwork_url = results[0].get("artworkUrl100", "")
         if not artwork_url:
             return None
