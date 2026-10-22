@@ -1,0 +1,32 @@
+services:
+  musicgrabber:
+    image: g33kphr33k/musicgrabber:latest
+    container_name: musicgrabber
+    restart: unless-stopped
+    shm_size: 2gb   # necessário para playlists grandes do Spotify (navegador headless)
+    ports:
+      - "38274:8080"
+    environment:
+      TZ: America/Sao_Paulo
+      PUID: 1000
+      PGID: 1000
+      MUSIC_DIR: /music
+      DB_PATH: /data/music_grabber.db
+      ENABLE_MUSICBRAINZ: "true"
+      # Navidrome: rescan automático após cada download e checagem de duplicatas
+      NAVIDROME_URL: http://host.docker.internal:4533
+      NAVIDROME_USER: ${NAVIDROME_USER}
+      NAVIDROME_PASS: ${NAVIDROME_PASS}
+      # Soulseek via slskd
+      SOURCE_SOULSEEK_ENABLED: "true"
+      SLSKD_URL: http://host.docker.internal:5030
+      SLSKD_USER: ${SLSKD_USER}
+      SLSKD_PASS: ${SLSKD_PASS}
+      SLSKD_DOWNLOADS_PATH: /downloads
+      SLSKD_MOVE_COMPLETED: "true"   # apaga a cópia da pasta de downloads depois de entregar
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # stacks separados: acessa o Navidrome pelo host
+    volumes:
+      - /srv/appdata/musicgrabber:/data
+      - /srv/media/downloads/soulseek:/downloads   # mesma pasta de downloads do slskd
+      - /srv/media/music:/music   # mesma pasta do Navidrome, aqui com escrita
