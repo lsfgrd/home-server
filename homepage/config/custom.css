@@ -1,0 +1,5 @@
+/* Widgets de recursos: rótulo (SSD, HD) acima das barras em vez de abaixo */
+.information-widget-resources div:has(> div.text-center.text-xs) {
+  display: flex;
+  flex-direction: column-reverse;
+}
