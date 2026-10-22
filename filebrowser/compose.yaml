@@ -1,0 +1,12 @@
+services:
+  filebrowser:
+    image: gtstef/filebrowser:2.0-stable
+    container_name: filebrowser
+    user: 1000:1000
+    ports:
+      - "8081:80"   # 8080 fica reservada para o Pi-hole
+    volumes:
+      - /srv/media:/hd
+      - /srv/appdata/filebrowser:/home/filebrowser/data
+      - ./config.yaml:/home/filebrowser/data/config.yaml
+    restart: unless-stopped
