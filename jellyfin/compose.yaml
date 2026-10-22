@@ -1,0 +1,17 @@
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:12.2
+    container_name: jellyfin
+    user: 1000:1000
+    group_add:
+      - "992"
+    network_mode: host   # app discovery on TVs and phones
+    environment:
+      TZ: America/Sao_Paulo
+    volumes:
+      - /srv/appdata/jellyfin/config:/config
+      - /srv/appdata/jellyfin/cache:/cache
+      - /srv/media/videos:/media:ro
+    devices:
+      - /dev/dri/renderD129:/dev/dri/renderD129   # host Intel device : inside container
+    restart: unless-stopped
