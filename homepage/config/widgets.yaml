@@ -5,6 +5,8 @@
 - resources:
     cpu: true
     memory: true
+
+- resources:
     disk: /
     label: SSD
 
