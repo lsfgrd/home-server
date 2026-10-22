@@ -1,0 +1,15 @@
+services:
+  dockge:
+    image: louislam/dockge:1
+    container_name: dockge
+    restart: unless-stopped
+    ports:
+      - "5001:5001"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /srv/appdata/dockge:/app/data
+      - /opt/stacks:/opt/stacks   # mesmo caminho dentro e fora, obrigatório
+    environment:
+      - DOCKGE_STACKS_DIR=/opt/stacks
+      - PUID=1000   # arquivos editados pelo Dockge ficam no seu nome
+      - PGID=1000
