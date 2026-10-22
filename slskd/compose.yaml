@@ -1,0 +1,25 @@
+services:
+  slskd:
+    image: slskd/slskd:0.26.1
+    container_name: slskd
+    user: 1000:1000
+    restart: unless-stopped
+    ports:
+      - "5030:5030"       # interface web / API
+      - "50300:50300"     # porta do Soulseek: precisa ser encaminhada no roteador
+    environment:
+      TZ: America/Sao_Paulo
+      SLSKD_SLSK_USERNAME: ${SLSK_USERNAME}
+      SLSKD_SLSK_PASSWORD: ${SLSK_PASSWORD}
+      SLSKD_SLSK_LISTEN_PORT: 50300
+      SLSKD_USERNAME: ${SLSKD_USER}
+      SLSKD_PASSWORD: ${SLSKD_PASS}
+      SLSKD_API_KEY: ${SLSKD_API_KEY}
+      SLSKD_DOWNLOADS_DIR: /downloads
+      SLSKD_INCOMPLETE_DIR: /incomplete
+      SLSKD_SHARED_DIR: /shares        # só o que você coloca em /srv/media/shares (somente leitura)
+    volumes:
+      - /srv/appdata/slskd:/app
+      - /srv/media/shares:/shares:ro
+      - /srv/media/downloads/soulseek:/downloads       # fora da biblioteca: nunca é compartilhado
+      - /srv/appdata/slskd/incomplete:/incomplete
