@@ -1,0 +1,37 @@
+- Mídia:
+    - Jellyfin:
+        href: http://192.168.0.5:8096
+        icon: jellyfin.png
+        description: Filmes e séries
+        siteMonitor: http://192.168.0.5:8096
+    - Navidrome:
+        href: http://192.168.0.5:4533
+        icon: navidrome.png
+        description: Música
+        siteMonitor: http://192.168.0.5:4533
+
+- Downloads:
+    - qBittorrent:
+        href: http://192.168.0.5:8082
+        icon: qbittorrent.png
+        siteMonitor: http://192.168.0.5:8082
+    - slskd:
+        href: http://192.168.0.5:5030
+        icon: slskd.png
+        siteMonitor: http://192.168.0.5:5030
+
+- Arquivos:
+    - FileBrowser:
+        href: http://192.168.0.5:8081
+        icon: filebrowser.png
+        siteMonitor: http://192.168.0.5:8081
+    - Picard:
+        href: http://192.168.0.5:5800
+        icon: musicbrainz-picard.png
+        siteMonitor: http://192.168.0.5:5800
+
+- Sistema:
+    - Dockge:
+        href: http://192.168.0.5:5001
+        icon: dockge.png
+        siteMonitor: http://192.168.0.5:5001
