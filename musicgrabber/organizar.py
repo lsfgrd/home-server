@@ -11,10 +11,14 @@ Metallica/, Clara Nunes/...) e decide se a faixa é single ou parte de um álbum
   - o grupo tem >= --min-album-tracks      -> cria o álbum
   - senão                                  -> Singles/Artista/
   - arquivos em Singles/ cujo álbum existe -> sobem para o álbum
+  - faixa fora de Albums/ com mesmo artista e título de uma já em Albums/
+    (mesmo que o nome do álbum difira, ex.: "Vol. 1" x "Volume One")
+                                           -> é removida (a de Albums/ fica)
 
 Arquivos em Albums/ nunca são tocados. Os .lrc seguem a faixa e as capas
 (cover/folder/front) seguem se a pasta de origem inteira vai para um só destino.
-Nada é sobrescrito nem apagado; só pastas que ficarem vazias são removidas.
+Nada é sobrescrito; os únicos arquivos apagados são essas duplicatas (e o .lrc
+delas). Pastas que ficarem vazias também são removidas.
 
 Por padrão só mostra o plano. Use --apply para mover de verdade.
 Precisa de ffprobe; sem ele no host, usa o do container do Navidrome.
@@ -61,6 +65,14 @@ EDICAO = re.compile(r"\s*[\(\[]([^\)\]]*(remaster|deluxe|edition|re-?issue|expan
 def norm_album(s):
     """Ignora sufixos de edição, como (Remastered), (Deluxe Edition) ou (2004)."""
     return norm(EDICAO.sub("", s or ""))
+
+
+PREFIXO_FAIXA = re.compile(r"^(\d+-)?\d+\s*-\s+")
+
+
+def titulo_do_arquivo(arq):
+    """Título de um arquivo de Albums/ pelo nome (tira o prefixo "NN - " ou "DD-NN - ")."""
+    return PREFIXO_FAIXA.sub("", arq.stem)
 
 
 def limpa(s):
@@ -127,18 +139,27 @@ def main():
         if pasta.is_dir():
             existentes[(norm(pasta.parent.name), norm_album(pasta.name))] = pasta
 
+    # faixas que já estão em Albums/: (artista, título) pelo caminho/nome do arquivo
+    em_albums = {(norm(a.parent.parent.name), norm(titulo_do_arquivo(a)))
+                 for a in albums_dir.glob("*/*/*")
+                 if a.suffix.lower() in AUDIO and a.is_file()}
+
     # arquivos a avaliar: tudo fora de Albums/ (em Singles/ só para subir a álbum)
     faixas = []
     for arq in sorted(root.rglob("*")):
-        if arq.suffix.lower() in AUDIO and arq.is_file() and albums_dir not in arq.parents:
+        if (arq.suffix.lower() in AUDIO and arq.is_file() and albums_dir not in arq.parents):
             faixas.append(Faixa(arq, probe(arq, args)))
     if not faixas:
         print("Nada fora de Albums/ para organizar.")
         return
 
+    destinos = {}   # Faixa -> (tipo, destino)
     grupos = defaultdict(list)
     for f in faixas:
-        grupos[f.chave_album].append(f)
+        if (norm(f.artista), norm(f.titulo)) in em_albums:
+            destinos[f] = ("remover", None)
+        else:
+            grupos[f.chave_album].append(f)
 
     def nome_canonico(grupo):
         """Nome de álbum mais comum entre as faixas (empate: o mais curto)."""
@@ -151,7 +172,6 @@ def main():
         nome = limpa(album) + (f" ({f.ano})" if args.year and f.ano else "")
         return albums_dir / limpa(f.artista) / nome
 
-    destinos = {}   # Faixa -> (tipo, destino)
     for chave, grupo in grupos.items():
         sem_album = not chave[1]
         so_single = len(grupo) == 1 and norm(grupo[0].album) == norm(grupo[0].titulo)
@@ -177,7 +197,10 @@ def main():
         pares = [(f.arq, dst)]
         lrc = f.arq.with_suffix(".lrc")
         if lrc.exists():
-            pares.append((lrc, dst.with_suffix(".lrc")))
+            pares.append((lrc, dst and dst.with_suffix(".lrc")))
+        if tipo == "remover":
+            movimentos.extend((tipo, o, None) for o, _ in pares)
+            continue
         if any(d in usados or (d.exists() and d != o) for o, d in pares):
             conflitos.append((f.arq, dst))
             continue
@@ -187,7 +210,7 @@ def main():
 
     por_origem = defaultdict(set)
     for f in faixas:
-        if f in destinos:
+        if f in destinos and destinos[f][0] != "remover":
             por_origem[f.arq.parent].add(destinos[f][1].parent)
     for pasta, dsts in por_origem.items():
         if len(dsts) != 1 or pasta == root:
@@ -208,7 +231,10 @@ def main():
     # saída
     rel = lambda x: x.relative_to(root)
     for tipo, o, d in movimentos:
-        print(f"[{tipo:6}] {rel(o)}\n         -> {rel(d)}")
+        if d is None:
+            print(f"[{tipo:6}] {rel(o)}")
+        else:
+            print(f"[{tipo:6}] {rel(o)}\n         -> {rel(d)}")
     for o, d in conflitos:
         print(f"[CONFLITO] {rel(o)} -> {rel(d)} (destino já existe; ignorado)")
     cont = defaultdict(int)
@@ -222,6 +248,9 @@ def main():
         return
 
     for _, o, d in movimentos:
+        if d is None:
+            o.unlink()
+            continue
         d.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(str(o), str(d))
     # remove pastas que ficaram vazias (nunca a raiz, Albums ou Singles)
