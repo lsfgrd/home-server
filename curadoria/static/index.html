@@ -52,7 +52,10 @@
 <body>
 <header>
   <h1>Curadoria — downloads → Navidrome</h1>
+  <button id="aba-inbox" class="pri">Inbox</button>
+  <button id="aba-bib">Biblioteca</button>
   <span id="resumo" class="mut"></span>
+  <label id="lshare" style="margin:0"><input type="checkbox" id="share-ao-mover"> Compartilhar após mover</label>
   <button id="todos">Selecionar todos</button>
   <button id="recarregar">Recarregar</button>
   <button id="mover" class="pri" disabled>Mover selecionados</button>
@@ -61,6 +64,15 @@
   <div id="lista"></div>
   <div id="editor"><p class="mut">Escolha um álbum à esquerda para revisar as tags. Marque a caixa dos que deseja mover.</p></div>
 </main>
+<section id="bib" hidden style="flex:1;min-height:0;overflow:auto">
+  <div class="barra" style="padding:0 16px">
+    <input type="text" id="bfiltro" placeholder="filtrar artista ou álbum" style="max-width:320px">
+    <span id="bresumo" class="mut" style="margin-right:auto"></span>
+    <button id="bshare" class="pri" disabled>Compartilhar</button>
+    <button id="bunshare" class="danger" disabled>Parar de compartilhar</button>
+  </div>
+  <div id="blista"></div>
+</section>
 <dialog id="mb"><div id="mbconteudo"></div><div class="barra"><button id="mbfechar">Fechar</button></div></dialog>
 <div id="toast"></div>
 
@@ -252,14 +264,67 @@ $('#mover').onclick = async () => {
   $('#mover').disabled = true;
   const payload = sel.map(a => ({...a, faixas: a.faixas.filter(f => !pular[a.pasta].has(f.arquivo))}));
   try {
-    const r = await api('/api/mover', {albuns: payload});
+    const r = await api('/api/mover', {albuns: payload, compartilhar: $('#share-ao-mover').checked});
     toast(r.resultados.map(x => x.ok
-      ? `✓ ${x.destino} (${x.movidas} faixas${x.puladas.length ? `, ${x.puladas.length} puladas` : ''})`
+      ? `✓ ${x.destino} (${x.movidas} faixas${x.puladas.length ? `, ${x.puladas.length} puladas` : ''}${x.compartilhado ? ', compartilhado' : ''})`
       : `✗ ${x.pasta}: ${x.erro || x.erros.join('; ')}`).join('\n'), 15000);
     marcados.clear();
     await carregar();
   } catch (err) { toast('Erro: ' + err.message); $('#mover').disabled = false; }
 };
+
+// ---------- aba Biblioteca (compartilhamento Soulseek) ----------
+let bib = [];
+const bmarc = new Set();
+const ROT = {sim: ['ok', 'compartilhado'], parcial: ['warn', 'parcial'], nao: ['', 'não compartilhado']};
+
+function mostraAba(nome) {
+  const b = nome === 'bib';
+  $('#bib').hidden = !b; $('main').hidden = b;
+  for (const id of ['todos', 'recarregar', 'mover', 'resumo', 'lshare']) $('#' + id).hidden = b;
+  $('#aba-inbox').classList.toggle('pri', !b); $('#aba-bib').classList.toggle('pri', b);
+  if (b) carregaBib().catch(e => toast('Erro: ' + e.message));
+}
+$('#aba-inbox').onclick = () => mostraAba('inbox');
+$('#aba-bib').onclick = () => mostraAba('bib');
+
+async function carregaBib() {
+  bib = await api('/api/biblioteca');
+  for (const r of [...bmarc]) if (!bib.some(a => a.rel === r)) bmarc.delete(r);
+  desenhaBib();
+}
+function desenhaBib() {
+  const q = $('#bfiltro').value.trim().toLowerCase();
+  const vis = bib.filter(a => !q || (a.artista + ' ' + a.album).toLowerCase().includes(q));
+  $('#blista').innerHTML = vis.map(a => {
+    const [cls, txt] = ROT[a.share];
+    return `<div class="item" data-r="${esc(a.rel)}"><input type="checkbox" ${bmarc.has(a.rel) ? 'checked' : ''}>
+      <div><div class="t">${esc(a.artista)} — ${esc(a.album)}</div>
+      <div class="s">${a.faixas} faixas</div><div><span class="tag ${cls}">${txt}</span></div></div></div>`;
+  }).join('') || '<p class="mut" style="padding:12px">Nada encontrado.</p>';
+  const n = bib.filter(a => a.share !== 'nao').length;
+  $('#bresumo').textContent = `${bib.length} álbuns · ${n} compartilhados · ${bmarc.size} marcados`;
+  $('#bshare').disabled = $('#bunshare').disabled = !bmarc.size;
+}
+$('#bfiltro').oninput = desenhaBib;
+$('#blista').addEventListener('click', e => {
+  const it = e.target.closest('.item'); if (!it) return;
+  const r = it.dataset.r;
+  if (e.target.type !== 'checkbox') { bmarc.has(r) ? bmarc.delete(r) : bmarc.add(r); }
+  else e.target.checked ? bmarc.add(r) : bmarc.delete(r);
+  desenhaBib();
+});
+async function aplicaShare(ligar) {
+  const sel = [...bmarc];
+  if (!ligar && !confirm(`Parar de compartilhar ${sel.length} álbum(ns)?\nSó os links em shares são apagados; a biblioteca não muda.`)) return;
+  try {
+    const r = await api('/api/compartilhar', {albuns: sel, ligar});
+    toast(`${ligar ? 'Compartilhados' : 'Removidos do compartilhamento'}: ${r.resultados.length} álbum(ns), ${r.resultados.reduce((n, x) => n + x.arquivos, 0)} arquivo(s).`);
+    bmarc.clear(); await carregaBib();
+  } catch (err) { toast('Erro: ' + err.message); }
+}
+$('#bshare').onclick = () => aplicaShare(true);
+$('#bunshare').onclick = () => aplicaShare(false);
 
 carregar().catch(e => toast('Erro: ' + e.message));
 </script>

@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """Curadoria: revisa álbuns baixados do Soulseek e move para a biblioteca do Navidrome.
 
-Destino (mesmo formato do MusicGrabber / organizar.py):
+Destino:
     Albums/Artista/Álbum/NN - Título.ext       (multi-disco: DD-NN - Título.ext)
+
+Compartilhar (Soulseek): cria hardlinks do álbum em SHARES com o mesmo caminho relativo
+(sem gastar espaço); o slskd só enxerga essa pasta. Parar de compartilhar apaga os links.
 
 Nada é sobrescrito: faixas que já existem no destino (mesmo título) são puladas e
 ficam na pasta de origem para você decidir.
@@ -12,7 +15,10 @@ import json
 import os
 import re
 import shutil
+import threading
+import time
 import unicodedata
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -26,6 +32,7 @@ from flask import Flask, jsonify, request, send_from_directory, abort
 DOWNLOADS = Path(os.environ.get("DOWNLOADS_DIR", "/media/downloads/soulseek")).resolve()
 MUSIC = Path(os.environ.get("MUSIC_DIR", "/media/music")).resolve()
 ALBUMS = MUSIC / "Albums"
+SHARES = Path(os.environ.get("SHARES_DIR", "/media/shares")).resolve()
 UA = "curadoria/1.0 (local)"
 
 AUDIO = {".flac", ".mp3", ".m4a", ".opus", ".ogg", ".aac", ".wav", ".alac", ".wma"}
@@ -298,6 +305,31 @@ def escreve_tags(arq, d, f):
     m.save()
 
 
+_mb_lock = threading.Lock()
+_mb_ultimo = 0.0
+
+
+def mb_get(url):
+    """GET no MusicBrainz respeitando o limite de 1 req/s; repete se vier 503/429."""
+    global _mb_ultimo
+    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    for tentativa in range(4):
+        with _mb_lock:
+            espera = 1.1 - (time.monotonic() - _mb_ultimo)
+            if espera > 0:
+                time.sleep(espera)
+            _mb_ultimo = time.monotonic()
+        try:
+            with urllib.request.urlopen(req, timeout=30) as r:
+                return json.load(r)
+        except urllib.error.HTTPError as e:
+            if e.code not in (429, 503) or tentativa == 3:
+                abort(502, f"MusicBrainz respondeu {e.code}. Tente de novo em instantes.")
+            time.sleep(2 * (tentativa + 1))
+        except (urllib.error.URLError, TimeoutError) as e:
+            abort(502, f"Não consegui falar com o MusicBrainz: {getattr(e, 'reason', e)}")
+
+
 def baixa_capa_caa(mbid, destino_arq):
     try:
         req = urllib.request.Request(f"https://coverartarchive.org/release/{mbid}/front-500",
@@ -353,9 +385,7 @@ def mb_busca():
     q = f'artist:"{request.args.get("artista", "")}" AND release:"{request.args.get("album", "")}"'
     url = "https://musicbrainz.org/ws/2/release?" + urllib.parse.urlencode(
         {"query": q, "fmt": "json", "limit": 25})
-    req = urllib.request.Request(url, headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=30) as r:
-        rels = json.load(r)["releases"]
+    rels = mb_get(url)["releases"]
     return jsonify([{
         "id": r["id"],
         "titulo": r["title"],
@@ -375,9 +405,7 @@ def mb_aplicar():
     body = request.get_json()
     url = (f"https://musicbrainz.org/ws/2/release/{body['id']}?"
            + urllib.parse.urlencode({"inc": "recordings+artist-credits", "fmt": "json"}))
-    req = urllib.request.Request(url, headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=30) as r:
-        rel = json.load(r)
+    rel = mb_get(url)
     mb = []
     for medium in rel["media"]:
         for t in medium["tracks"]:
@@ -474,9 +502,91 @@ def move_album(d):
             "origem_removida": not pasta.exists()}
 
 
+def album_biblioteca(rel):
+    """Pasta de álbum pelo caminho relativo à biblioteca (Albums/Artista/Álbum)."""
+    p = (MUSIC / rel).resolve()
+    if ALBUMS not in p.parents or len(p.relative_to(ALBUMS).parts) != 2 or not p.is_dir():
+        abort(400, "caminho inválido")
+    return p
+
+
+def compartilhaveis(pasta):
+    return [a for a in pasta.rglob("*")
+            if a.is_file() and not a.name.startswith(".")
+            and a.suffix.lower() in AUDIO | IMAGENS | {".lrc"}]
+
+
+def estado_share(rel):
+    arqs = compartilhaveis(MUSIC / rel)
+    n = sum((SHARES / a.relative_to(MUSIC)).exists() for a in arqs)
+    return "sim" if n and n == len(arqs) else "parcial" if n else "nao"
+
+
+def compartilha(rel):
+    pasta = album_biblioteca(rel)
+    novos = 0
+    for a in compartilhaveis(pasta):
+        alvo = SHARES / a.relative_to(MUSIC)
+        if alvo.exists():
+            continue
+        alvo.parent.mkdir(parents=True, exist_ok=True)
+        os.link(a, alvo)
+        novos += 1
+    return novos
+
+
+def descompartilha(rel):
+    pasta = album_biblioteca(rel)
+    alvo = SHARES / pasta.relative_to(MUSIC)
+    if not alvo.is_dir():
+        return 0
+    removidos = 0
+    for a in alvo.rglob("*"):
+        # só apaga hardlinks; arquivo que não é cópia da biblioteca fica
+        if a.is_file() and a.stat().st_nlink > 1:
+            a.unlink()
+            removidos += 1
+    for sub in sorted((x for x in alvo.rglob("*") if x.is_dir()), key=lambda x: -len(x.parts)):
+        if not any(sub.iterdir()):
+            sub.rmdir()
+    for d in (alvo, alvo.parent, alvo.parent.parent):
+        if d != SHARES and d.is_dir() and not any(d.iterdir()):
+            d.rmdir()
+    return removidos
+
+
+@app.get("/api/biblioteca")
+def biblioteca():
+    itens = []
+    for alb in sorted(ALBUMS.glob("*/*")):
+        if alb.is_dir():
+            rel = str(alb.relative_to(MUSIC))
+            itens.append({"rel": rel, "artista": alb.parent.name, "album": alb.name,
+                          "faixas": len(audio_files(alb)), "share": estado_share(rel)})
+    return jsonify(itens)
+
+
+@app.post("/api/compartilhar")
+def api_compartilhar():
+    d = request.get_json()
+    fn = compartilha if d.get("ligar", True) else descompartilha
+    return jsonify({"resultados": [{"rel": r, "arquivos": fn(r), "share": estado_share(r)}
+                                   for r in d["albuns"]]})
+
+
 @app.post("/api/mover")
 def mover():
-    resultados = [move_album(d) for d in request.get_json()["albuns"]]
+    dados = request.get_json()
+    resultados = [move_album(d) for d in dados["albuns"]]
+    if dados.get("compartilhar"):
+        for r in resultados:
+            if r.get("movidas"):
+                try:
+                    compartilha(r["destino"])
+                    r["compartilhado"] = True
+                except Exception as e:
+                    r["erros"].append(f"compartilhar: {e}")
+                    r["ok"] = False
     return jsonify({"resultados": resultados})
 
 

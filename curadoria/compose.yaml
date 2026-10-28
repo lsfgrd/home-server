@@ -11,6 +11,7 @@ services:
       TZ: America/Sao_Paulo
       DOWNLOADS_DIR: /media/downloads/soulseek
       MUSIC_DIR: /media/music
+      SHARES_DIR: /media/shares   # hardlinks que o slskd compartilha
     volumes:
       # um único volume para downloads e biblioteca: mover vira rename, sem copiar
       - /srv/media:/media
