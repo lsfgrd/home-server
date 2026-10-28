@@ -12,6 +12,7 @@ services:
     volumes:
       - /srv/appdata/qbittorrent:/config
       - /srv/media/downloads/torrents:/downloads
+      - /srv/media/videos/anime:/anime
     ports:
       - "8082:8082"
       - "6881:6881"
