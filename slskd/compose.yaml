@@ -27,5 +27,5 @@ services:
       homepage.group: Downloads
       homepage.name: slskd
       homepage.icon: slskd.png
-      homepage.href: http://192.168.0.5:5030
-      homepage.siteMonitor: http://192.168.0.5:5030
+      homepage.href: http://192.168.0.6:5030
+      homepage.siteMonitor: http://192.168.0.6:5030

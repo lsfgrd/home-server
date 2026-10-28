@@ -19,9 +19,9 @@ services:
       homepage.group: Mídia
       homepage.name: Jellyfin
       homepage.icon: jellyfin.png
-      homepage.href: http://192.168.0.5:8096
+      homepage.href: http://192.168.0.6:8096
       homepage.description: Filmes e séries
-      homepage.siteMonitor: http://192.168.0.5:8096
+      homepage.siteMonitor: http://192.168.0.6:8096
 
   # Watchparty: túnel temporário (URL aleatória em trycloudflare.com).
   # Não sobe com o up.sh; use:

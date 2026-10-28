@@ -17,7 +17,7 @@ services:
     labels:
       homepage.group: Downloads
       homepage.name: Curadoria
-      homepage.icon: http://192.168.0.5:38275/favicon.svg
-      homepage.href: http://192.168.0.5:38275
+      homepage.icon: http://192.168.0.6:38275/favicon.svg
+      homepage.href: http://192.168.0.6:38275
       homepage.description: Downloads → Navidrome
-      homepage.siteMonitor: http://192.168.0.5:38275
+      homepage.siteMonitor: http://192.168.0.6:38275
