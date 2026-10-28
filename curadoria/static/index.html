@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Curadoria</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<style>
+  :root { --bg:#14161a; --panel:#1c1f25; --line:#2c313a; --fg:#e6e8eb; --mut:#8b929e; --acc:#4cc38a; --warn:#e5a84b; --err:#e5645b; }
+  @media (prefers-color-scheme: light) { :root { --bg:#f4f5f7; --panel:#fff; --line:#d9dce1; --fg:#1b1e23; --mut:#667; --acc:#12805a; --warn:#a86a00; --err:#c0332b; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.4 system-ui,sans-serif; height:100vh; display:flex; flex-direction:column; }
+  header { display:flex; gap:12px; align-items:center; padding:10px 16px; border-bottom:1px solid var(--line); background:var(--panel); }
+  header h1 { font-size:16px; margin:0; margin-right:auto; }
+  main { flex:1; display:grid; grid-template-columns:minmax(260px,380px) 1fr; min-height:0; }
+  #lista { overflow:auto; border-right:1px solid var(--line); }
+  #editor { overflow:auto; padding:16px; }
+  .item { display:flex; gap:10px; padding:10px 12px; border-bottom:1px solid var(--line); cursor:pointer; align-items:flex-start; }
+  .item:hover { background:var(--panel); }
+  .item.sel { background:var(--panel); box-shadow:inset 3px 0 var(--acc); }
+  .item .t { font-weight:600; overflow-wrap:anywhere; }
+  .item .s { color:var(--mut); font-size:12px; }
+  .tag { display:inline-block; padding:0 6px; border-radius:9px; font-size:11px; border:1px solid var(--line); margin-right:4px; }
+  .tag.warn { color:var(--warn); border-color:var(--warn); } .tag.err { color:var(--err); border-color:var(--err); } .tag.ok { color:var(--acc); border-color:var(--acc); }
+  button { background:var(--panel); color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:6px 12px; cursor:pointer; font:inherit; }
+  button:hover { border-color:var(--mut); } button:disabled { opacity:.5; cursor:default; }
+  button.pri { background:var(--acc); border-color:var(--acc); color:#06150e; font-weight:600; }
+  button.danger { color:var(--err); }
+  input[type=text], input[type=number] { background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:5px 8px; font:inherit; width:100%; }
+  input:focus { outline:1px solid var(--acc); }
+  .campos { display:grid; grid-template-columns:2fr 2fr 90px 1fr; gap:10px; margin:12px 0; }
+  label { font-size:12px; color:var(--mut); display:block; margin-bottom:2px; }
+  .cabeca { display:flex; gap:16px; align-items:flex-start; }
+  .cabeca img { width:120px; height:120px; object-fit:cover; border-radius:6px; background:var(--panel); border:1px solid var(--line); }
+  .cabeca .nocover { width:120px; height:120px; display:grid; place-items:center; color:var(--mut); font-size:12px; border:1px dashed var(--line); border-radius:6px; flex:none; }
+  table { width:100%; border-collapse:collapse; margin-top:8px; }
+  th { text-align:left; font-size:12px; color:var(--mut); font-weight:500; padding:4px; }
+  td { padding:2px 3px; vertical-align:middle; }
+  td input { padding:3px 6px; } td.n input { width:52px; } td.dst { font-size:11px; color:var(--mut); overflow-wrap:anywhere; }
+  tr.existe td, tr.repetida td { opacity:.55; } tr.skip td { text-decoration:line-through; opacity:.4; }
+  .barra { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:12px 0; }
+  .dest { font-family:ui-monospace,monospace; font-size:12px; padding:6px 8px; background:var(--panel); border:1px solid var(--line); border-radius:5px; overflow-wrap:anywhere; }
+  .aviso { color:var(--warn); } .erro { color:var(--err); }
+  dialog { background:var(--panel); color:var(--fg); border:1px solid var(--line); border-radius:8px; max-width:760px; width:92vw; }
+  dialog::backdrop { background:#0008; }
+  .mbrow { padding:8px; border:1px solid var(--line); border-radius:6px; margin:6px 0; display:flex; gap:10px; align-items:center; }
+  .mbrow span { flex:1; } .mut { color:var(--mut); }
+  #toast { position:fixed; bottom:16px; right:16px; max-width:480px; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px 14px; display:none; white-space:pre-wrap; }
+  @media (max-width:760px) { main { grid-template-columns:1fr; } #lista { max-height:40vh; border-right:0; border-bottom:1px solid var(--line); } .campos { grid-template-columns:1fr 1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Curadoria — downloads → Navidrome</h1>
+  <span id="resumo" class="mut"></span>
+  <button id="todos">Selecionar todos</button>
+  <button id="recarregar">Recarregar</button>
+  <button id="mover" class="pri" disabled>Mover selecionados</button>
+</header>
+<main>
+  <div id="lista"></div>
+  <div id="editor"><p class="mut">Escolha um álbum à esquerda para revisar as tags. Marque a caixa dos que deseja mover.</p></div>
+</main>
+<dialog id="mb"><div id="mbconteudo"></div><div class="barra"><button id="mbfechar">Fechar</button></div></dialog>
+<div id="toast"></div>
+
+<script>
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let albuns = [], atual = null;
+const marcados = new Set();           // pastas marcadas
+const pular = {};                     // pasta -> Set de arquivos desmarcados
+
+async function api(url, body) {
+  const r = await fetch(url, body ? {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)} : {});
+  if (!r.ok) throw new Error((await r.text()).replace(/<[^>]+>/g, '').trim() || r.status);
+  return r.json();
+}
+function toast(msg, ms = 6000) {
+  const t = $('#toast'); t.textContent = msg; t.style.display = 'block';
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.style.display = 'none', ms);
+}
+
+async function carregar() {
+  $('#lista').innerHTML = '<p class="mut" style="padding:12px">Lendo tags…</p>';
+  albuns = await api('/api/inbox');
+  for (const a of albuns) pular[a.pasta] ??= new Set();
+  for (const p of [...marcados]) if (!albuns.some(a => a.pasta === p)) marcados.delete(p);
+  atual = albuns.find(a => a.pasta === atual?.pasta) || null;
+  desenhaLista(); desenhaEditor();
+}
+
+function badges(a) {
+  const b = [];
+  if (a.plano.album_existe) b.push('<span class="tag warn">álbum já existe</span>');
+  const ex = a.plano.faixas.filter(f => f.estado === 'existe').length;
+  if (ex) b.push(`<span class="tag warn">${ex} duplicada(s)</span>`);
+  if (a.sem_tags) b.push(`<span class="tag err">${a.sem_tags} sem tags</span>`);
+  if (a.plano.problemas.length) b.push('<span class="tag err">incompleto</span>');
+  if (!b.length) b.push('<span class="tag ok">pronto</span>');
+  return b.join('');
+}
+
+function desenhaLista() {
+  $('#lista').innerHTML = albuns.map(a => `
+    <div class="item ${atual?.pasta === a.pasta ? 'sel' : ''}" data-p="${esc(a.pasta)}">
+      <input type="checkbox" ${marcados.has(a.pasta) ? 'checked' : ''}>
+      <div><div class="t">${esc(a.artista || '?')} — ${esc(a.album)}</div>
+      <div class="s">${a.faixas.length} faixas · ${a.formatos.join('/')}${a.ano ? ' · ' + a.ano : ''}</div>
+      <div>${badges(a)}</div></div>
+    </div>`).join('') || '<p class="mut" style="padding:12px">Nada em downloads/soulseek.</p>';
+  $('#resumo').textContent = `${albuns.length} álbuns · ${marcados.size} marcados`;
+  $('#mover').disabled = !marcados.size;
+}
+
+$('#lista').addEventListener('click', e => {
+  const it = e.target.closest('.item'); if (!it) return;
+  const a = albuns.find(x => x.pasta === it.dataset.p);
+  if (e.target.type === 'checkbox') { e.target.checked ? marcados.add(a.pasta) : marcados.delete(a.pasta); desenhaLista(); return; }
+  atual = a; desenhaLista(); desenhaEditor();
+});
+$('#todos').onclick = () => {
+  if (marcados.size === albuns.length) marcados.clear(); else albuns.forEach(a => marcados.add(a.pasta));
+  desenhaLista();
+};
+$('#recarregar').onclick = () => carregar().catch(e => toast('Erro: ' + e.message));
+
+function linhaExtra(a, k, x) {
+  const mod = a.extras_mod[k], val = mod ?? (x.varia ? [] : x.valores);
+  return `<tr data-k="${esc(k)}"><td style="width:160px"><b>${esc(k)}</b></td>
+    <td><textarea rows="${Math.max(1, val.length)}" data-x="${esc(k)}" placeholder="${x.varia ? '(varia entre faixas — digite para sobrescrever)' : ''}"
+      style="width:100%;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:5px;padding:4px 8px;font:inherit">${esc(val.join('\n'))}</textarea></td></tr>`;
+}
+
+function desenhaEditor() {
+  const a = atual, ed = $('#editor');
+  if (!a) { ed.innerHTML = '<p class="mut">Escolha um álbum à esquerda.</p>'; return; }
+  const capa = a.capa ? `<img src="/api/capa?pasta=${encodeURIComponent(a.pasta)}&arquivo=${encodeURIComponent(a.capa)}">`
+                      : '<div class="nocover">sem capa<br>(busca no MusicBrainz)</div>';
+  ed.innerHTML = `
+    <div class="cabeca">${capa}<div style="flex:1">
+      <div class="mut">Origem: ${esc(a.pasta)}</div>
+      <div class="campos">
+        <div><label>Artista do álbum</label><input type="text" data-k="artista" value="${esc(a.artista)}"></div>
+        <div><label>Álbum</label><input type="text" data-k="album" value="${esc(a.album)}"></div>
+        <div><label>Ano</label><input type="text" data-k="ano" value="${esc(a.ano)}"></div>
+        <div><label>MBID do release</label><input type="text" data-k="mbid" value="${esc(a.mbid)}"></div>
+      </div></div></div>
+    <details id="extras"><summary>Outras tags do álbum (comentário, gênero, encoder…) — valem para todas as faixas</summary>
+      <table><tbody>${Object.entries(a.extras).map(([k, x]) => linhaExtra(a, k, x)).join('')}</tbody></table>
+      <div class="barra"><input type="text" id="nk" list="chaves" placeholder="nova tag (ex.: genre)" style="max-width:200px">
+        <input type="text" id="nv" placeholder="valor" style="max-width:300px"><button id="badd">Adicionar</button></div>
+      <datalist id="chaves"><option>genre<option>comment<option>composer<option>grouping<option>label<option>albumsort<option>artistsort</datalist>
+      <div class="mut">Um valor por linha. Esvaziar o campo remove a tag de todas as faixas.</div></details>
+    <div class="barra"><button id="bmb">Buscar no MusicBrainz</button>
+      <button id="bartfaixa">Artista → todas as faixas</button>
+      <button id="bdesc" class="danger">Descartar pasta…</button></div>
+    <div id="dest"></div>
+    <table id="faixas"><thead><tr><th></th><th>Disco</th><th>Faixa</th><th>Título</th><th>Artista (se diferente)</th><th>Arquivo → destino</th></tr></thead>
+    <tbody>${a.faixas.map((f, i) => `
+      <tr data-i="${i}">
+        <td><input type="checkbox" class="inc" checked title="mover esta faixa"></td>
+        <td class="n"><input type="number" min="1" data-f="disco" value="${f.disco || 1}"></td>
+        <td class="n"><input type="number" min="1" data-f="faixa" value="${f.faixa ?? ''}"></td>
+        <td><input type="text" data-f="titulo" value="${esc(f.titulo)}"></td>
+        <td><input type="text" data-f="artista" value="${esc(f.artista)}"></td>
+        <td class="dst"></td></tr>`).join('')}</tbody></table>
+    ${a.outros.length ? `<p class="mut">Outros arquivos na pasta (descartados se a pasta ficar vazia de áudio): ${esc(a.outros.join(', '))}</p>` : ''}`;
+  ed.querySelectorAll('#faixas tbody tr').forEach((tr, i) => { if (pular[a.pasta].has(a.faixas[i].arquivo)) { tr.querySelector('.inc').checked = false; tr.classList.add('skip'); } });
+  if (Object.keys(a.extras_mod).length) $('#extras').open = true;
+  atualizaPlano();
+}
+
+$('#editor').addEventListener('input', e => {
+  const a = atual; if (!a) return;
+  if (e.target.dataset.x) { a.extras_mod[e.target.dataset.x] = e.target.value.split('\n'); return; }
+  if (e.target.dataset.k) a[e.target.dataset.k] = e.target.value;
+  else if (e.target.dataset.f) {
+    const i = +e.target.closest('tr').dataset.i, k = e.target.dataset.f;
+    a.faixas[i][k] = (k === 'disco' || k === 'faixa') ? (e.target.value ? +e.target.value : null) : e.target.value;
+  } else if (e.target.classList.contains('inc')) {
+    const tr = e.target.closest('tr'), arq = a.faixas[+tr.dataset.i].arquivo;
+    e.target.checked ? pular[a.pasta].delete(arq) : pular[a.pasta].add(arq);
+    tr.classList.toggle('skip', !e.target.checked);
+  }
+  clearTimeout(atualizaPlano.h); atualizaPlano.h = setTimeout(atualizaPlano, 300);
+});
+
+async function atualizaPlano() {
+  const a = atual; if (!a) return;
+  try { a.plano = await api('/api/plano', a); } catch (e) { return; }
+  if (a !== atual) return;
+  const p = a.plano;
+  $('#dest').innerHTML = `<div class="dest">${p.destino ? 'music/' + esc(p.destino) : '—'}</div>
+    ${p.album_existe ? '<div class="aviso">Esse álbum já existe na biblioteca: faixas com o mesmo título serão puladas.</div>' : ''}
+    ${p.problemas.map(x => `<div class="erro">${esc(x)}</div>`).join('')}`;
+  $('#editor').querySelectorAll('#faixas tbody tr').forEach((tr, i) => {
+    const s = p.faixas[i];
+    tr.classList.toggle('existe', s.estado === 'existe'); tr.classList.toggle('repetida', s.estado === 'repetida');
+    tr.querySelector('.dst').textContent = (s.estado === 'existe' ? '[já existe] ' : s.estado === 'repetida' ? '[repetida] ' : '') + s.destino;
+  });
+  desenhaLista();
+}
+
+$('#editor').addEventListener('click', async e => {
+  const a = atual; if (!a) return;
+  if (e.target.id === 'bartfaixa') { a.faixas.forEach(f => f.artista = a.artista); desenhaEditor(); }
+  if (e.target.id === 'bmb') buscaMB();
+  if (e.target.id === 'badd') {
+    const k = $('#nk').value.trim().toLowerCase(), v = $('#nv').value;
+    if (!/^[a-z0-9_]{1,40}$/.test(k)) return toast('Nome da tag: letras minúsculas, números e _');
+    if (['title','artist','albumartist','album','date','tracknumber','discnumber','musicbrainz_albumid'].includes(k)) return toast('Essa tag tem campo próprio acima.');
+    a.extras[k] ??= {valores: [], varia: false}; a.extras_mod[k] = v.split('\n');
+    desenhaEditor(); $('#extras').open = true;
+  }
+  if (e.target.id === 'bdesc' && confirm(`Apagar "${a.pasta}" de downloads/soulseek?\nIsso não pode ser desfeito.`)) {
+    await api('/api/descartar', {pasta: a.pasta}); atual = null; await carregar();
+  }
+});
+
+async function buscaMB() {
+  const a = atual, dlg = $('#mb');
+  $('#mbconteudo').innerHTML = '<p>Buscando…</p>'; dlg.showModal();
+  try {
+    const rs = await api(`/api/mb/busca?artista=${encodeURIComponent(a.artista)}&album=${encodeURIComponent(a.album)}`);
+    $('#mbconteudo').innerHTML = `<h3 style="margin-top:0">Edições encontradas</h3>` +
+      (rs.map(r => `<div class="mbrow"><span><b>${esc(r.artista)} — ${esc(r.titulo)}</b><br>
+        <span class="mut">${r.faixas} faixas · ${esc(r.formato)} · ${esc(r.data || '?')} · ${esc(r.pais || '?')}${r.faixas === a.faixas.length ? ' · <b style="color:var(--acc)">mesmo nº de faixas</b>' : ''}</span></span>
+        <button data-id="${r.id}">Usar</button></div>`).join('') || '<p class="mut">Nada encontrado. Ajuste artista/álbum e tente de novo.</p>');
+  } catch (err) { $('#mbconteudo').innerHTML = `<p class="erro">${esc(err.message)}</p>`; }
+}
+$('#mbconteudo').addEventListener('click', async e => {
+  const id = e.target.dataset.id; if (!id) return;
+  const a = atual; e.target.disabled = true;
+  try {
+    const r = await api('/api/mb/aplicar', {id, faixas: a.faixas});
+    Object.assign(a, {artista: r.artista, album: r.album, ano: r.ano, mbid: r.mbid});
+    r.faixas.forEach((n, i) => { if (n) Object.assign(a.faixas[i], n); });
+    $('#mb').close(); desenhaEditor();
+    const sem = a.faixas.filter((_, i) => !r.faixas[i]).length;
+    toast(`Tags preenchidas pelo MusicBrainz.${sem ? `\n${sem} faixa(s) sem par — revise.` : ''}${r.sem_par_mb.length ? `\n${r.sem_par_mb.length} faixa(s) do release não estão na pasta.` : ''}`);
+  } catch (err) { toast('Erro: ' + err.message); e.target.disabled = false; }
+});
+$('#mbfechar').onclick = () => $('#mb').close();
+
+$('#mover').onclick = async () => {
+  const sel = albuns.filter(a => marcados.has(a.pasta));
+  const bloq = sel.filter(a => a.plano.problemas.length);
+  if (bloq.length) return toast('Corrija antes de mover:\n' + bloq.map(a => '• ' + a.pasta).join('\n'));
+  const dups = sel.reduce((n, a) => n + a.plano.faixas.filter(f => f.estado === 'existe').length, 0);
+  if (!confirm(`Mover ${sel.length} álbum(ns) para a biblioteca?` + (dups ? `\n${dups} faixa(s) duplicada(s) serão puladas.` : ''))) return;
+  $('#mover').disabled = true;
+  const payload = sel.map(a => ({...a, faixas: a.faixas.filter(f => !pular[a.pasta].has(f.arquivo))}));
+  try {
+    const r = await api('/api/mover', {albuns: payload});
+    toast(r.resultados.map(x => x.ok
+      ? `✓ ${x.destino} (${x.movidas} faixas${x.puladas.length ? `, ${x.puladas.length} puladas` : ''})`
+      : `✗ ${x.pasta}: ${x.erro || x.erros.join('; ')}`).join('\n'), 15000);
+    marcados.clear();
+    await carregar();
+  } catch (err) { toast('Erro: ' + err.message); $('#mover').disabled = false; }
+};
+
+carregar().catch(e => toast('Erro: ' + e.message));
+</script>
+</body>
+</html>

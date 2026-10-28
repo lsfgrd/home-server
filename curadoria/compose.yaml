@@ -1,0 +1,23 @@
+services:
+  curadoria:
+    build: .
+    image: curadoria:local
+    container_name: curadoria
+    user: 1000:1000
+    restart: unless-stopped
+    ports:
+      - "38275:8080"
+    environment:
+      TZ: America/Sao_Paulo
+      DOWNLOADS_DIR: /media/downloads/soulseek
+      MUSIC_DIR: /media/music
+    volumes:
+      # um único volume para downloads e biblioteca: mover vira rename, sem copiar
+      - /srv/media:/media
+    labels:
+      homepage.group: Downloads
+      homepage.name: Curadoria
+      homepage.icon: http://192.168.0.5:38275/favicon.svg
+      homepage.href: http://192.168.0.5:38275
+      homepage.description: Downloads → Navidrome
+      homepage.siteMonitor: http://192.168.0.5:38275
