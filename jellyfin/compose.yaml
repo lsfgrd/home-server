@@ -22,3 +22,17 @@ services:
       homepage.href: http://192.168.0.5:8096
       homepage.description: Filmes e séries
       homepage.siteMonitor: http://192.168.0.5:8096
+
+  # Watchparty: túnel temporário (URL aleatória em trycloudflare.com).
+  # Não sobe com o up.sh; use:
+  #   docker compose -f jellyfin/compose.yaml --profile tunnel up -d cloudflared
+  #   docker logs cloudflared 2>&1 | grep trycloudflare
+  # Para encerrar:
+  #   docker rm -f cloudflared
+  cloudflared:
+    image: cloudflare/cloudflared:2025.8.1
+    container_name: cloudflared
+    profiles: [tunnel]
+    network_mode: host   # alcança o Jellyfin em localhost:8096
+    command: tunnel --no-autoupdate --url http://localhost:8096
+    restart: "no"
