@@ -37,6 +37,7 @@ services:
       - /srv/media/downloads/soulseek:/downloads   # mesma pasta de downloads do slskd
       - /srv/media/music:/music   # mesma pasta do Navidrome, aqui com escrita
       - ./patches/coverart.py:/opt/musicgrabber/metadata/coverart.py:ro   # patch: capa do iTunes só se o álbum bater
+      - ./patches/slskd.py:/opt/musicgrabber/toolkit/slskd.py:ro   # patch: busca de álbum no Soulseek tenta consultas alternativas
     labels:
       homepage.group: Downloads
       homepage.name: MusicGrabber
