@@ -152,6 +152,29 @@ def acha_capa(pasta):
     return min(cands, key=lambda a: (len(a.parts), a.name), default=None)
 
 
+def imagem_embutida(arq):
+    """(bytes, mime) da capa embutida nas tags do áudio, ou None."""
+    try:
+        f = mutagen.File(arq)
+        if f is None:
+            return None
+        if getattr(f, "pictures", None):      # FLAC
+            pic = next((p for p in f.pictures if p.type == 3), f.pictures[0])
+            return pic.data, pic.mime or "image/jpeg"
+        tags = f.tags
+        if tags is None:
+            return None
+        if hasattr(tags, "getall") and tags.getall("APIC"):      # MP3
+            a = tags.getall("APIC")[0]
+            return a.data, a.mime or "image/jpeg"
+        if "covr" in tags and tags["covr"]:                      # M4A
+            c = tags["covr"][0]
+            return bytes(c), "image/png" if c.imageformat == 14 else "image/jpeg"
+    except Exception:
+        pass
+    return None
+
+
 def acha_existente(pai, nome, f=norm):
     """Pasta já existente em `pai` equivalente a `nome` (ignora caixa, acentos, pontuação)."""
     if not pai.is_dir():
@@ -198,6 +221,9 @@ def rascunho(pasta):
     for f in faixas:
         del f["extras"]
     capa = acha_capa(pasta)
+    capa_embutida = ""
+    if not capa:
+        capa_embutida = next((str(a.relative_to(pasta)) for a in arqs if imagem_embutida(a)), "")
     outros = [a.name for a in pasta.rglob("*")
               if a.is_file() and a.suffix.lower() not in AUDIO and a != capa]
     return {
@@ -207,6 +233,7 @@ def rascunho(pasta):
         "ano": ano,
         "mbid": mais_comum([f["mbid"] for f in faixas]),
         "capa": str(capa.relative_to(pasta)) if capa else "",
+        "capa_embutida": capa_embutida,
         "faixas": faixas,
         "extras": extras,
         "extras_mod": {},
@@ -374,8 +401,18 @@ def api_plano():
 @app.get("/api/capa")
 def capa():
     pasta = seguro(request.args["pasta"])
-    c = (pasta / request.args["arquivo"]).resolve()
-    if pasta not in c.parents or c.suffix.lower() not in IMAGENS:
+    emb = request.args.get("embutida")
+    c = (pasta / (emb or request.args["arquivo"])).resolve()
+    if pasta not in c.parents:
+        abort(400)
+    if emb:
+        if c.suffix.lower() not in AUDIO:
+            abort(400)
+        img = imagem_embutida(c)
+        if not img:
+            abort(404)
+        return app.response_class(img[0], mimetype=img[1], headers={"Cache-Control": "max-age=300"})
+    if c.suffix.lower() not in IMAGENS:
         abort(400)
     return send_from_directory(c.parent, c.name)
 
@@ -479,6 +516,8 @@ def move_album(d):
         if not any((alb_dir / n).exists() for n in ("cover.jpg", "cover.png", "folder.jpg")):
             if capa and capa.is_file():
                 shutil.move(str(capa), str(alb_dir / ("cover" + capa.suffix.lower())))
+            elif d.get("capa_embutida"):
+                pass   # a capa já está nas tags; o Navidrome a usa
             elif d.get("mbid"):
                 baixa_capa_caa(d["mbid"], alvo_capa)
         info = alb_dir / ".albuminfo"
@@ -564,6 +603,21 @@ def biblioteca():
             itens.append({"rel": rel, "artista": alb.parent.name, "album": alb.name,
                           "faixas": len(audio_files(alb)), "share": estado_share(rel)})
     return jsonify(itens)
+
+
+@app.get("/api/capa-bib")
+def capa_bib():
+    alb = (MUSIC / request.args["rel"]).resolve()
+    if ALBUMS not in alb.parents or not alb.is_dir():
+        abort(400)
+    c = acha_capa(alb)
+    if c:
+        return send_from_directory(c.parent, c.name, max_age=3600)
+    for a in audio_files(alb):
+        img = imagem_embutida(a)
+        if img:
+            return app.response_class(img[0], mimetype=img[1], headers={"Cache-Control": "max-age=3600"})
+    abort(404)
 
 
 @app.post("/api/compartilhar")

@@ -6,63 +6,143 @@
 <title>Curadoria</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <style>
-  :root { --bg:#14161a; --panel:#1c1f25; --line:#2c313a; --fg:#e6e8eb; --mut:#8b929e; --acc:#4cc38a; --warn:#e5a84b; --err:#e5645b; }
-  @media (prefers-color-scheme: light) { :root { --bg:#f4f5f7; --panel:#fff; --line:#d9dce1; --fg:#1b1e23; --mut:#667; --acc:#12805a; --warn:#a86a00; --err:#c0332b; } }
+  :root { --bg:#0e1319; --panel:#151c24; --raise:#1b242e; --line:#26313d; --fg:#e7ecf1; --mut:#8795a5; --acc:#8ea7ff; --acc-ink:#0b1230; --ok:#5cc796; --warn:#e8a94a; --err:#ef6f66;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif; --sombra:0 8px 22px #0007; }
+  @media (prefers-color-scheme: light) { :root { --bg:#eceff3; --panel:#fff; --raise:#f6f8fa; --line:#d5dbe2; --fg:#131b24; --mut:#5d6b7a; --acc:#2c4bd6; --acc-ink:#fff; --ok:#17805a; --warn:#9a5f00; --err:#bf3029; --sombra:0 8px 22px #1b2a3c33; } }
   * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.4 system-ui,sans-serif; height:100vh; display:flex; flex-direction:column; }
-  header { display:flex; gap:12px; align-items:center; padding:10px 16px; border-bottom:1px solid var(--line); background:var(--panel); }
-  header h1 { font-size:16px; margin:0; margin-right:auto; }
-  main { flex:1; display:grid; grid-template-columns:minmax(260px,380px) 1fr; min-height:0; }
-  #lista { overflow:auto; border-right:1px solid var(--line); }
-  #editor { overflow:auto; padding:16px; }
-  .item { display:flex; gap:10px; padding:10px 12px; border-bottom:1px solid var(--line); cursor:pointer; align-items:flex-start; }
-  .item:hover { background:var(--panel); }
-  .item.sel { background:var(--panel); box-shadow:inset 3px 0 var(--acc); }
-  .item .t { font-weight:600; overflow-wrap:anywhere; }
-  .item .s { color:var(--mut); font-size:12px; }
-  .tag { display:inline-block; padding:0 6px; border-radius:9px; font-size:11px; border:1px solid var(--line); margin-right:4px; }
-  .tag.warn { color:var(--warn); border-color:var(--warn); } .tag.err { color:var(--err); border-color:var(--err); } .tag.ok { color:var(--acc); border-color:var(--acc); }
-  button { background:var(--panel); color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:6px 12px; cursor:pointer; font:inherit; }
-  button:hover { border-color:var(--mut); } button:disabled { opacity:.5; cursor:default; }
-  button.pri { background:var(--acc); border-color:var(--acc); color:#06150e; font-weight:600; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 system-ui,sans-serif; height:100vh; display:flex; flex-direction:column; }
+  [hidden] { display:none !important; }
+  :focus-visible { outline:2px solid var(--acc); outline-offset:2px; }
+
+  header { display:flex; gap:10px; align-items:center; padding:10px 20px; border-bottom:1px solid var(--line); background:var(--panel); }
+  header h1 { font:600 21px/1 var(--serif); letter-spacing:-.01em; margin:0 14px 0 0; }
+  #aba-inbox, #aba-bib { background:none; border:0; border-bottom:2px solid transparent; border-radius:0; padding:6px 2px; margin-right:12px; color:var(--mut); font-weight:500; }
+  #aba-inbox:hover, #aba-bib:hover { color:var(--fg); }
+  #aba-inbox.pri, #aba-bib.pri { color:var(--fg); border-bottom-color:var(--acc); background:none; }
+  #acoes { display:flex; align-items:center; gap:10px; margin-left:auto; }
+  #lshare { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--mut); }
+
+  main { flex:1; display:grid; grid-template-columns:minmax(280px,400px) 1fr; min-height:0; }
+  #lista { overflow:auto; border-right:1px solid var(--line); background:var(--panel); }
+  #editor { overflow:auto; padding:26px 32px 40px; }
+  #editor > * { max-width:980px; }
+
+  .item { display:flex; gap:12px; padding:10px 16px; border-bottom:1px solid var(--line); cursor:pointer; align-items:center; }
+  .item:hover { background:var(--raise); }
+  .item.sel { background:var(--raise); box-shadow:inset 3px 0 var(--acc); }
+  .item input[type=checkbox] { flex:none; }
+  .thumb { position:relative; overflow:hidden; flex:none; width:48px; height:48px; border-radius:3px; background:var(--raise); border:1px solid var(--line); object-fit:cover; display:grid; place-items:center; font:600 18px var(--serif); color:var(--mut); }
+  .thumb > img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .item .t { font:600 15px/1.25 var(--serif); overflow-wrap:anywhere; }
+  .item .s { color:var(--mut); font-size:12px; margin-top:1px; }
+  .tag { display:inline-block; padding:0 7px; border-radius:9px; font-size:11px; border:1px solid var(--line); margin:3px 4px 0 0; }
+  .tag.warn { color:var(--warn); border-color:var(--warn); } .tag.err { color:var(--err); border-color:var(--err); } .tag.ok { color:var(--ok); border-color:var(--ok); }
+  input[type=checkbox] { accent-color:var(--acc); width:16px; height:16px; }
+
+  button { background:var(--panel); color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:6px 13px; cursor:pointer; font:inherit; transition:border-color .12s, background .12s; }
+  button:hover { border-color:var(--mut); } button:disabled { opacity:.45; cursor:default; }
+  button.pri { background:var(--acc); border-color:var(--acc); color:var(--acc-ink); font-weight:600; }
   button.danger { color:var(--err); }
-  input[type=text], input[type=number] { background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:5px 8px; font:inherit; width:100%; }
-  input:focus { outline:1px solid var(--acc); }
-  .campos { display:grid; grid-template-columns:2fr 2fr 90px 1fr; gap:10px; margin:12px 0; }
+  input[type=text], input[type=number], textarea { background:var(--bg); color:var(--fg); border:1px solid var(--line); border-radius:5px; padding:6px 9px; font:inherit; width:100%; }
+  input:focus, textarea:focus { outline:none; border-color:var(--acc); }
   label { font-size:12px; color:var(--mut); display:block; margin-bottom:2px; }
-  .cabeca { display:flex; gap:16px; align-items:flex-start; }
-  .cabeca img { width:120px; height:120px; object-fit:cover; border-radius:6px; background:var(--panel); border:1px solid var(--line); }
-  .cabeca .nocover { width:120px; height:120px; display:grid; place-items:center; color:var(--mut); font-size:12px; border:1px dashed var(--line); border-radius:6px; flex:none; }
+
+  .cabeca { display:flex; gap:26px; align-items:flex-start; }
+  .cabeca img, .cabeca .nocover { width:156px; height:156px; flex:none; border-radius:3px; }
+  .cabeca img { object-fit:cover; background:var(--panel); box-shadow:var(--sombra); }
+  .cabeca .nocover { display:grid; place-items:center; text-align:center; color:var(--mut); font-size:12px; border:1px dashed var(--line); }
+  .campos { display:grid; grid-template-columns:1fr 1fr; gap:14px 22px; margin:10px 0 18px; }
+  .campos input { background:transparent; border:0; border-bottom:1px solid var(--line); border-radius:0; padding:5px 0; }
+  .campos input:focus { border-bottom-color:var(--acc); box-shadow:0 1px 0 var(--acc); }
+  .campos > :has(input[data-k=album]), .campos > :has(input[data-k=mbid]) { grid-column:1 / -1; }
+  .campos > :has(input[data-k=album]) { order:-1; }
+  .campos input[data-k=album] { font:600 24px/1.2 var(--serif); letter-spacing:-.01em; }
+  .campos input[data-k=artista] { font:500 17px/1.3 var(--serif); }
+  #extras { margin:4px 0 8px; } #extras summary { cursor:pointer; color:var(--mut); padding:4px 0; }
+  #extras summary:hover { color:var(--fg); }
+
   table { width:100%; border-collapse:collapse; margin-top:8px; }
-  th { text-align:left; font-size:12px; color:var(--mut); font-weight:500; padding:4px; }
-  td { padding:2px 3px; vertical-align:middle; }
-  td input { padding:3px 6px; } td.n input { width:52px; } td.dst { font-size:11px; color:var(--mut); overflow-wrap:anywhere; }
+  th { text-align:left; font-size:12px; color:var(--mut); font-weight:500; padding:6px 4px; border-bottom:1px solid var(--line); }
+  td { padding:3px; vertical-align:middle; border-bottom:1px solid color-mix(in srgb, var(--line) 60%, transparent); font-variant-numeric:tabular-nums; }
+  #extras td { border-bottom:0; }
+  td input[type=text], td input[type=number] { background:transparent; border-color:transparent; padding:4px 6px; }
+  td input[type=text]:hover, td input[type=number]:hover { border-color:var(--line); }
+  td input[type=text]:focus, td input[type=number]:focus { background:var(--bg); border-color:var(--acc); }
+  #faixas { table-layout:fixed; } #faixas th:nth-child(1), #faixas td:nth-child(1) { width:34px; } #faixas th:nth-child(2), #faixas td:nth-child(2), #faixas th:nth-child(3), #faixas td:nth-child(3) { width:64px; } #faixas th:nth-child(5), #faixas td:nth-child(5) { width:17%; } #faixas th:nth-child(6), #faixas td:nth-child(6) { width:26%; }
+  td.n input { width:100%; } td.dst { font:11px ui-monospace,monospace; color:var(--mut); overflow-wrap:anywhere; }
   tr.existe td, tr.repetida td { opacity:.55; } tr.skip td { text-decoration:line-through; opacity:.4; }
-  .barra { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:12px 0; }
-  .dest { font-family:ui-monospace,monospace; font-size:12px; padding:6px 8px; background:var(--panel); border:1px solid var(--line); border-radius:5px; overflow-wrap:anywhere; }
-  .aviso { color:var(--warn); } .erro { color:var(--err); }
-  dialog { background:var(--panel); color:var(--fg); border:1px solid var(--line); border-radius:8px; max-width:760px; width:92vw; }
-  dialog::backdrop { background:#0008; }
-  .mbrow { padding:8px; border:1px solid var(--line); border-radius:6px; margin:6px 0; display:flex; gap:10px; align-items:center; }
+  .barra { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:14px 0; }
+  .dest { font:12px ui-monospace,monospace; padding:8px 12px; background:var(--panel); border-left:3px solid var(--acc); border-radius:0 5px 5px 0; overflow-wrap:anywhere; }
+  .aviso { color:var(--warn); margin-top:6px; } .erro { color:var(--err); margin-top:6px; }
+  dialog { background:var(--panel); color:var(--fg); border:1px solid var(--line); border-radius:10px; max-width:760px; width:92vw; box-shadow:var(--sombra); }
+  dialog::backdrop { background:#0009; }
+  .mbrow { padding:10px 12px; border:1px solid var(--line); border-radius:6px; margin:6px 0; display:flex; gap:10px; align-items:center; }
   .mbrow span { flex:1; } .mut { color:var(--mut); }
-  #toast { position:fixed; bottom:16px; right:16px; max-width:480px; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px 14px; display:none; white-space:pre-wrap; }
-  @media (max-width:760px) { main { grid-template-columns:1fr; } #lista { max-height:40vh; border-right:0; border-bottom:1px solid var(--line); } .campos { grid-template-columns:1fr 1fr; } }
+  #toast { position:fixed; bottom:16px; right:16px; max-width:480px; background:var(--raise); border:1px solid var(--line); border-left:3px solid var(--acc); border-radius:6px; padding:10px 14px; display:none; white-space:pre-wrap; box-shadow:var(--sombra); }
+  #bresumo:empty { display:none; }
+  #bib .barra { padding:10px 20px !important; margin:0; position:sticky; top:0; background:var(--bg); border-bottom:1px solid var(--line); z-index:1; }
+  #voltar { display:none; margin-bottom:12px; }
+
+  @media (max-width:760px) {
+    body { height:100dvh; font-size:15px; }
+    header { flex-wrap:wrap; gap:8px; padding:10px 12px; }
+    header h1 { flex:1 1 100%; font-size:20px; margin:0; }
+    #acoes { position:fixed; left:0; right:0; bottom:0; z-index:5; margin:0; padding:8px 12px calc(8px + env(safe-area-inset-bottom)); background:var(--panel); border-top:1px solid var(--line); flex-wrap:wrap; gap:8px; }
+    #acoes #resumo { flex:1 1 0; order:1; font-size:13px; }
+    #acoes #todos, #acoes #recarregar { order:2; min-height:34px; padding:4px 10px; font-size:13px; }
+    #acoes #lshare { flex:1 1 0; order:3; font-size:13px; }
+    #acoes #mover { order:4; }
+    #lista, #editor, #blista { padding-bottom:120px; }
+    #lista { padding-bottom:0; } #lista > :last-child { margin-bottom:120px; }
+    button { min-height:40px; padding:8px 12px; }
+    input[type=text], input[type=number], textarea { font-size:16px; min-height:38px; }
+    input[type=checkbox] { width:22px; height:22px; }
+    main { grid-template-columns:1fr; }
+    #lista { border-right:0; }
+    #editor { display:none; padding:14px 12px 32px; }
+    body.ver-editor #lista { display:none; }
+    body.ver-editor #editor { display:block; }
+    #voltar { display:block; }
+    .item { padding:11px 12px; }
+    .cabeca { flex-direction:column; gap:14px; }
+    .cabeca img, .cabeca .nocover { width:112px; height:112px; }
+    .campos { gap:12px 14px; }
+    .campos input[data-k=album] { font-size:21px; }
+    .barra button { flex:1 1 auto; }
+    .barra input[type=text] { max-width:none !important; flex:1 1 100%; }
+    #bib .barra { padding:10px 12px !important; }
+    #bib #blista { padding-bottom:24px; }
+    #bib .barra #bfiltro { max-width:none !important; flex:1 1 100%; }
+    dialog { width:96vw; max-height:90dvh; }
+    #toast { left:12px; right:12px; bottom:12px; max-width:none; }
+    #extras table, #extras tbody, #extras tr, #extras td { display:block; width:100% !important; }
+    #faixas thead { display:none; }
+    #faixas, #faixas tbody { display:block; }
+    #faixas tr { display:grid; grid-template-columns:auto 1fr 1fr; gap:6px 8px; align-items:center; padding:10px 0; border-bottom:1px solid var(--line); }
+    #faixas th, #faixas td { padding:0; display:block; border:0; width:auto !important; }
+    #faixas td.n input { width:100%; }
+    #faixas td input[type=text], #faixas td input[type=number] { border-color:var(--line); background:var(--bg); }
+    #faixas td:nth-child(4), #faixas td:nth-child(5), #faixas td.dst { grid-column:1 / -1; }
+  }
+  @media (prefers-reduced-motion: reduce) { button { transition:none; } }
 </style>
 </head>
 <body>
 <header>
-  <h1>Curadoria — downloads → Navidrome</h1>
+  <h1>Curadoria</h1>
   <button id="aba-inbox" class="pri">Inbox</button>
   <button id="aba-bib">Biblioteca</button>
-  <span id="resumo" class="mut"></span>
-  <label id="lshare" style="margin:0"><input type="checkbox" id="share-ao-mover"> Compartilhar após mover</label>
-  <button id="todos">Selecionar todos</button>
-  <button id="recarregar">Recarregar</button>
-  <button id="mover" class="pri" disabled>Mover selecionados</button>
+  <div id="acoes">
+    <span id="resumo" class="mut"></span>
+    <label id="lshare" style="margin:0"><input type="checkbox" id="share-ao-mover"> Compartilhar após mover</label>
+    <button id="todos">Selecionar todos</button>
+    <button id="recarregar">Recarregar</button>
+    <button id="mover" class="pri" disabled>Mover selecionados</button>
+  </div>
 </header>
 <main>
   <div id="lista"></div>
-  <div id="editor"><p class="mut">Escolha um álbum à esquerda para revisar as tags. Marque a caixa dos que deseja mover.</p></div>
+  <div id="editor"><p class="mut">Escolha um álbum da lista para revisar as tags. Marque a caixa dos que quer mover.</p></div>
 </main>
 <section id="bib" hidden style="flex:1;min-height:0;overflow:auto">
   <div class="barra" style="padding:0 16px">
@@ -113,15 +193,24 @@ function badges(a) {
   return b.join('');
 }
 
+function capaUrl(a) {
+  const p = encodeURIComponent(a.pasta);
+  if (a.capa) return `/api/capa?pasta=${p}&arquivo=${encodeURIComponent(a.capa)}`;
+  if (a.capa_embutida) return `/api/capa?pasta=${p}&embutida=${encodeURIComponent(a.capa_embutida)}`;
+  return '';
+}
+
 function desenhaLista() {
   $('#lista').innerHTML = albuns.map(a => `
     <div class="item ${atual?.pasta === a.pasta ? 'sel' : ''}" data-p="${esc(a.pasta)}">
       <input type="checkbox" ${marcados.has(a.pasta) ? 'checked' : ''}>
+      ${capaUrl(a) ? `<img class="thumb" loading="lazy" alt="" src="${capaUrl(a)}">`
+               : `<div class="thumb">${esc((a.album || '?').charAt(0).toUpperCase())}</div>`}
       <div><div class="t">${esc(a.artista || '?')} — ${esc(a.album)}</div>
-      <div class="s">${a.faixas.length} faixas · ${a.formatos.join('/')}${a.ano ? ' · ' + a.ano : ''}</div>
+      <div class="s">${a.faixas.length} ${a.faixas.length === 1 ? 'faixa' : 'faixas'} · ${a.formatos.join('/')}${a.ano ? ' · ' + a.ano : ''}</div>
       <div>${badges(a)}</div></div>
     </div>`).join('') || '<p class="mut" style="padding:12px">Nada em downloads/soulseek.</p>';
-  $('#resumo').textContent = `${albuns.length} álbuns · ${marcados.size} marcados`;
+  $('#resumo').textContent = `${albuns.length} ${albuns.length === 1 ? 'álbum' : 'álbuns'} · ${marcados.size} ${marcados.size === 1 ? 'marcado' : 'marcados'}`;
   $('#mover').disabled = !marcados.size;
 }
 
@@ -130,6 +219,10 @@ $('#lista').addEventListener('click', e => {
   const a = albuns.find(x => x.pasta === it.dataset.p);
   if (e.target.type === 'checkbox') { e.target.checked ? marcados.add(a.pasta) : marcados.delete(a.pasta); desenhaLista(); return; }
   atual = a; desenhaLista(); desenhaEditor();
+  document.body.classList.add('ver-editor'); scrollTo(0, 0);
+});
+$('#editor').addEventListener('click', e => {
+  if (e.target.id === 'voltar') document.body.classList.remove('ver-editor');
 });
 $('#todos').onclick = () => {
   if (marcados.size === albuns.length) marcados.clear(); else albuns.forEach(a => marcados.add(a.pasta));
@@ -146,10 +239,11 @@ function linhaExtra(a, k, x) {
 
 function desenhaEditor() {
   const a = atual, ed = $('#editor');
-  if (!a) { ed.innerHTML = '<p class="mut">Escolha um álbum à esquerda.</p>'; return; }
-  const capa = a.capa ? `<img src="/api/capa?pasta=${encodeURIComponent(a.pasta)}&arquivo=${encodeURIComponent(a.capa)}">`
+  if (!a) { ed.innerHTML = '<p class="mut">Escolha um álbum da lista.</p>'; return; }
+  const capa = capaUrl(a) ? `<img src="${capaUrl(a)}" alt="">`
                       : '<div class="nocover">sem capa<br>(busca no MusicBrainz)</div>';
   ed.innerHTML = `
+    <button id="voltar">← Voltar à lista</button>
     <div class="cabeca">${capa}<div style="flex:1">
       <div class="mut">Origem: ${esc(a.pasta)}</div>
       <div class="campos">
@@ -172,10 +266,10 @@ function desenhaEditor() {
     <tbody>${a.faixas.map((f, i) => `
       <tr data-i="${i}">
         <td><input type="checkbox" class="inc" checked title="mover esta faixa"></td>
-        <td class="n"><input type="number" min="1" data-f="disco" value="${f.disco || 1}"></td>
-        <td class="n"><input type="number" min="1" data-f="faixa" value="${f.faixa ?? ''}"></td>
+        <td class="n"><input type="number" min="1" data-f="disco" title="Disco" value="${f.disco || 1}"></td>
+        <td class="n"><input type="number" min="1" data-f="faixa" title="Faixa" value="${f.faixa ?? ''}"></td>
         <td><input type="text" data-f="titulo" value="${esc(f.titulo)}"></td>
-        <td><input type="text" data-f="artista" value="${esc(f.artista)}"></td>
+        <td><input type="text" data-f="artista" value="${esc(f.artista)}" placeholder="artista (se diferente)"></td>
         <td class="dst"></td></tr>`).join('')}</tbody></table>
     ${a.outros.length ? `<p class="mut">Outros arquivos na pasta (descartados se a pasta ficar vazia de áudio): ${esc(a.outros.join(', '))}</p>` : ''}`;
   ed.querySelectorAll('#faixas tbody tr').forEach((tr, i) => { if (pular[a.pasta].has(a.faixas[i].arquivo)) { tr.querySelector('.inc').checked = false; tr.classList.add('skip'); } });
@@ -226,7 +320,7 @@ $('#editor').addEventListener('click', async e => {
     desenhaEditor(); $('#extras').open = true;
   }
   if (e.target.id === 'bdesc' && confirm(`Apagar "${a.pasta}" de downloads/soulseek?\nIsso não pode ser desfeito.`)) {
-    await api('/api/descartar', {pasta: a.pasta}); atual = null; await carregar();
+    await api('/api/descartar', {pasta: a.pasta}); atual = null; document.body.classList.remove('ver-editor'); await carregar();
   }
 });
 
@@ -281,7 +375,9 @@ const ROT = {sim: ['ok', 'compartilhado'], parcial: ['warn', 'parcial'], nao: ['
 function mostraAba(nome) {
   const b = nome === 'bib';
   $('#bib').hidden = !b; $('main').hidden = b;
-  for (const id of ['todos', 'recarregar', 'mover', 'resumo', 'lshare']) $('#' + id).hidden = b;
+  if (b) document.body.classList.remove('ver-editor');
+  $('#acoes').hidden = b;
+  history.replaceState(null, '', b ? '#biblioteca' : location.pathname);
   $('#aba-inbox').classList.toggle('pri', !b); $('#aba-bib').classList.toggle('pri', b);
   if (b) carregaBib().catch(e => toast('Erro: ' + e.message));
 }
@@ -299,11 +395,12 @@ function desenhaBib() {
   $('#blista').innerHTML = vis.map(a => {
     const [cls, txt] = ROT[a.share];
     return `<div class="item" data-r="${esc(a.rel)}"><input type="checkbox" ${bmarc.has(a.rel) ? 'checked' : ''}>
+      <div class="thumb">${esc((a.album || '?').charAt(0).toUpperCase())}<img loading="lazy" alt="" onerror="this.remove()" src="/api/capa-bib?rel=${encodeURIComponent(a.rel)}"></div>
       <div><div class="t">${esc(a.artista)} — ${esc(a.album)}</div>
-      <div class="s">${a.faixas} faixas</div><div><span class="tag ${cls}">${txt}</span></div></div></div>`;
+      <div class="s">${a.faixas} ${a.faixas === 1 ? 'faixa' : 'faixas'}</div><div><span class="tag ${cls}">${txt}</span></div></div></div>`;
   }).join('') || '<p class="mut" style="padding:12px">Nada encontrado.</p>';
   const n = bib.filter(a => a.share !== 'nao').length;
-  $('#bresumo').textContent = `${bib.length} álbuns · ${n} compartilhados · ${bmarc.size} marcados`;
+  $('#bresumo').textContent = `${bib.length} ${bib.length === 1 ? 'álbum' : 'álbuns'} · ${n} ${n === 1 ? 'compartilhado' : 'compartilhados'} · ${bmarc.size} ${bmarc.size === 1 ? 'marcado' : 'marcados'}`;
   $('#bshare').disabled = $('#bunshare').disabled = !bmarc.size;
 }
 $('#bfiltro').oninput = desenhaBib;
@@ -327,6 +424,7 @@ $('#bshare').onclick = () => aplicaShare(true);
 $('#bunshare').onclick = () => aplicaShare(false);
 
 carregar().catch(e => toast('Erro: ' + e.message));
+if (location.hash === '#biblioteca') mostraAba('bib');
 </script>
 </body>
 </html>
